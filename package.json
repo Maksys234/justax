@@ -1,8 +1,11 @@
 {
-  "name": "Justax Ai",
-  "version": "2.0.0",
+  "name": "justax-ai",
+  "version": "1.0.0",
+  "description": "ИИ-репетитор Justax",
+  "main": "api/mistral.js",
   "scripts": {
-    "start": "node api/mistral.js"
+    "start": "node api/mistral.js",
+    "dev": "NODE_ENV=development node api/mistral.js"
   },
   "dependencies": {
     "express": "^4.18.2",
