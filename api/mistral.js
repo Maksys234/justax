@@ -1,10 +1,13 @@
 const express = require('express');
+const ollamaRouter = require('./ollama');
 const axios = require('axios');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
 // Создаем Express-приложение
 const app = express();
+
+app.use('/api/ollama', ollamaRouter);
 
 // Проверка, запущен ли код на Vercel
 const isVercel = process.env.VERCEL === '1';
