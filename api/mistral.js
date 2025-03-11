@@ -10,13 +10,16 @@ const app = express();
 const corsOptions = {
   origin: '*', // Разрешаем запросы со всех доменов
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin'],
   optionsSuccessStatus: 200
 };
 
 // Применяем middleware
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
+
+// Настраиваем preflight OPTIONS запросы
+app.options('*', cors(corsOptions));
 
 // Конфигурация Ollama
 const OLLAMA_ENDPOINT = process.env.OLLAMA_ENDPOINT || 'http://localhost:11434';
