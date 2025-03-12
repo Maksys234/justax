@@ -19,8 +19,8 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.options('*', cors(corsOptions));
 
-// Get Ollama server URL from environment variable - note the updated URL
-const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'https://c9c8-109-183-236-86.ngrok-free.app';
+// Get Ollama server URL from environment variable
+const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'https://59ac-109-183-236-86.ngrok-free.app';
 const MODEL = process.env.MODEL || 'mistral:7b-instruct';
 
 console.log('Using Ollama server:', OLLAMA_SERVER);
@@ -301,8 +301,8 @@ function generateLocalPlan(subject) {
   }
 }
 
-// For local runs
-if (process.env.NODE_ENV !== 'production') {
+// For local testing
+if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
