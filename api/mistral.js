@@ -20,7 +20,7 @@ app.use(bodyParser.json());
 app.options('*', cors(corsOptions));
 
 // Get Ollama server URL from environment variable
-const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'https://59ac-109-183-236-86.ngrok-free.app';
+const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'https://c9c8-109-183-236-86.ngrok-free.app/';
 const MODEL = process.env.MODEL || 'mistral:7b-instruct';
 
 console.log('Using Ollama server:', OLLAMA_SERVER);
