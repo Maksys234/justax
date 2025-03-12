@@ -8,49 +8,12 @@
   ],
   "routes": [
     {
-      "src": "/solve",
-      "dest": "/api/mistral.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Origin"
-      }
-    },
-    {
-      "src": "/check-answer",
-      "dest": "/api/mistral.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Origin"
-      }
-    },
-    {
-      "src": "/generate-plan",
-      "dest": "/api/mistral.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Origin"
-      }
-    },
-    {
-      "src": "/api/ollama/(.*)",
-      "dest": "/api/mistral.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Origin"
-      }
+      "src": "/api/(.*)",
+      "dest": "/api/mistral.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/mistral.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Origin"
-      }
+      "dest": "/api/mistral.js"
     }
   ]
 }
