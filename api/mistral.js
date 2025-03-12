@@ -6,14 +6,7 @@ const bodyParser = require('body-parser');
 // Create Express app
 const app = express();
 
-// Configure CORS
-const corsOptions = {
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin'],
-  optionsSuccessStatus: 200
-};
-
+app.use(cors()); // Это разрешит все домены
 // Apply middleware
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
