@@ -12,6 +12,10 @@
       "dest": "/api/mistral.js"
     },
     {
+      "src": "/chat",
+      "dest": "/api/mistral.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/api/mistral.js"
     }
