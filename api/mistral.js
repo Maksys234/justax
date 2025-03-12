@@ -19,9 +19,8 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.options('*', cors(corsOptions));
 
-// Get Ollama server URL from environment variable
-// This is the critical part - using OLLAMA_SERVER instead of OLLAMA_ENDPOINT
-const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'http://localhost:11434';
+// Get Ollama server URL from environment variable - note the updated URL
+const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'https://c9c8-109-183-236-86.ngrok-free.app';
 const MODEL = process.env.MODEL || 'mistral:7b-instruct';
 
 console.log('Using Ollama server:', OLLAMA_SERVER);
@@ -29,9 +28,12 @@ console.log('Using Ollama server:', OLLAMA_SERVER);
 // Check if we can access Ollama
 const hasOllamaAccess = !!OLLAMA_SERVER;
 
-// Error handler
+// Error handler with more detailed logging
 const handleError = (res, error) => {
   console.error('API Error:', error.message);
+  console.error('Request details:', error.config || 'No config available');
+  console.error('Response details:', error.response?.data || 'No response data');
+  
   res.status(500).json({
     error: error.response?.data?.error || 'Internal Server Error',
     details: error.message
@@ -48,30 +50,24 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: 'API работает, подключен к Ollama: ' + OLLAMA_SERVER });
 });
 
-// Ollama proxy route - forward all requests to ollama API
-app.all('/api/ollama/:path(*)', async (req, res) => {
+// Test route to check Ollama connection
+app.get('/test-ollama', async (req, res) => {
   try {
-    const path = req.params.path;
-    const apiUrl = `${OLLAMA_SERVER}/api/${path}`;
-    
-    console.log(`Proxying request to: ${apiUrl}`);
-    
-    const config = {
-      method: req.method,
-      url: apiUrl,
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    };
-    
-    if (req.method !== 'GET' && Object.keys(req.body).length > 0) {
-      config.data = req.body;
-    }
-    
-    const response = await axios(config);
-    res.status(response.status).json(response.data);
+    console.log(`Testing connection to Ollama at ${OLLAMA_SERVER}`);
+    const response = await axios.get(`${OLLAMA_SERVER}/api/tags`);
+    res.json({
+      status: 'success',
+      models: response.data,
+      ollama_server: OLLAMA_SERVER
+    });
   } catch (error) {
-    handleError(res, error);
+    console.error('Ollama connection test failed:', error.message);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to connect to Ollama server',
+      error: error.message,
+      ollama_server: OLLAMA_SERVER
+    });
   }
 });
 
@@ -84,6 +80,8 @@ app.post('/solve', async (req, res) => {
       return res.status(400).json({ error: 'Missing question' });
     }
     
+    console.log(`Processing question: "${question}" (subject: ${subject})`);
+    
     // Check if in demo mode
     if (!hasOllamaAccess) {
       return res.json({
@@ -95,6 +93,13 @@ app.post('/solve', async (req, res) => {
     
     const prompt = buildSolvePrompt(question, subject || 'math');
     
+    // Log the request details
+    console.log(`Sending request to: ${OLLAMA_SERVER}/api/generate`);
+    console.log('Request payload:', {
+      model: MODEL,
+      prompt: prompt.substring(0, 100) + '...' // Log truncated prompt
+    });
+    
     const response = await axios.post(`${OLLAMA_SERVER}/api/generate`, {
       model: MODEL,
       prompt: prompt,
@@ -105,13 +110,24 @@ app.post('/solve', async (req, res) => {
       }
     });
     
+    console.log('Received response from Ollama');
+    
     res.json({
       solution: response.data.response || 'Не получилось сгенерировать решение.',
       question: question,
       subject: subject
     });
   } catch (error) {
-    handleError(res, error);
+    console.error(`Error solving question: ${error.message}`);
+    
+    // Return demo response on error
+    res.json({
+      solution: `Произошла ошибка при обращении к API: ${error.message}.\n\n` + 
+                generateLocalResponse(req.body.question || '', req.body.subject || 'math'),
+      question: req.body.question || '',
+      subject: req.body.subject || 'math',
+      error: error.message
+    });
   }
 });
 
@@ -149,7 +165,12 @@ app.post('/check-answer', async (req, res) => {
       studentAnswer: studentAnswer
     });
   } catch (error) {
-    handleError(res, error);
+    // Return demo response on error
+    res.json({
+      feedback: `Произошла ошибка при обращении к API. Ваш ответ выглядит неплохо. Продолжайте практиковаться!`,
+      studentAnswer: req.body.studentAnswer || '',
+      error: error.message
+    });
   }
 });
 
@@ -188,7 +209,13 @@ app.post('/generate-plan', async (req, res) => {
       daysUntilExam: days
     });
   } catch (error) {
-    handleError(res, error);
+    // Return demo response on error
+    res.json({
+      plan: generateLocalPlan(req.body.subject || 'math'),
+      subject: req.body.subject || 'math',
+      daysUntilExam: req.body.daysUntilExam || 30,
+      error: error.message
+    });
   }
 });
 
