@@ -1,40 +1,35 @@
 const express = require('express');
-const ollamaRouter = require('./ollama');
 const axios = require('axios');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
-// Создаем Express-приложение
+// Create Express app
 const app = express();
 
-app.use('/api/ollama', ollamaRouter);
-
-// Проверка, запущен ли код на Vercel
-const isVercel = process.env.VERCEL === '1';
-
-// Конфигурация CORS
+// Configure CORS
 const corsOptions = {
-  origin: '*', // Разрешаем запросы со всех доменов
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin'],
   optionsSuccessStatus: 200
 };
 
-// Применяем middleware
+// Apply middleware
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
-
-// Настраиваем preflight OPTIONS запросы
 app.options('*', cors(corsOptions));
 
-// Конфигурация Ollama
-const OLLAMA_ENDPOINT = process.env.OLLAMA_ENDPOINT || 'http://localhost:11434';
+// Get Ollama server URL from environment variable
+// This is the critical part - using OLLAMA_SERVER instead of OLLAMA_ENDPOINT
+const OLLAMA_SERVER = process.env.OLLAMA_SERVER || 'http://localhost:11434';
 const MODEL = process.env.MODEL || 'mistral:7b-instruct';
 
-// Функция для определения, есть ли доступ к Ollama API
-const hasOllamaAccess = isVercel && !process.env.OLLAMA_ENDPOINT ? false : true;
+console.log('Using Ollama server:', OLLAMA_SERVER);
 
-// Обработчик ошибок
+// Check if we can access Ollama
+const hasOllamaAccess = !!OLLAMA_SERVER;
+
+// Error handler
 const handleError = (res, error) => {
   console.error('API Error:', error.message);
   res.status(500).json({
@@ -43,17 +38,44 @@ const handleError = (res, error) => {
   });
 };
 
-// Маршрут для проверки статуса API
+// Status route
 app.get('/', (req, res) => {
   if (!hasOllamaAccess) {
     return res.status(200).json({ 
-      status: 'API работает в демо-режиме. Настройте OLLAMA_ENDPOINT в переменных окружения Vercel или используйте локальный демо-режим.' 
+      status: 'API работает в демо-режиме. Настройте OLLAMA_SERVER в переменных окружения Vercel.' 
     });
   }
-  res.status(200).json({ status: 'API работает' });
+  res.status(200).json({ status: 'API работает, подключен к Ollama: ' + OLLAMA_SERVER });
 });
 
-// Решение задач
+// Ollama proxy route - forward all requests to ollama API
+app.all('/api/ollama/:path(*)', async (req, res) => {
+  try {
+    const path = req.params.path;
+    const apiUrl = `${OLLAMA_SERVER}/api/${path}`;
+    
+    console.log(`Proxying request to: ${apiUrl}`);
+    
+    const config = {
+      method: req.method,
+      url: apiUrl,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    };
+    
+    if (req.method !== 'GET' && Object.keys(req.body).length > 0) {
+      config.data = req.body;
+    }
+    
+    const response = await axios(config);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// Math/Czech problem solving route
 app.post('/solve', async (req, res) => {
   try {
     const { question, subject } = req.body;
@@ -62,7 +84,7 @@ app.post('/solve', async (req, res) => {
       return res.status(400).json({ error: 'Missing question' });
     }
     
-    // Проверка демо-режима
+    // Check if in demo mode
     if (!hasOllamaAccess) {
       return res.json({
         solution: generateLocalResponse(question, subject || 'math'),
@@ -73,7 +95,7 @@ app.post('/solve', async (req, res) => {
     
     const prompt = buildSolvePrompt(question, subject || 'math');
     
-    const response = await axios.post(`${OLLAMA_ENDPOINT}/api/generate`, {
+    const response = await axios.post(`${OLLAMA_SERVER}/api/generate`, {
       model: MODEL,
       prompt: prompt,
       stream: false,
@@ -93,7 +115,7 @@ app.post('/solve', async (req, res) => {
   }
 });
 
-// Проверка ответов
+// Answer checking route
 app.post('/check-answer', async (req, res) => {
   try {
     const { studentAnswer } = req.body;
@@ -102,7 +124,7 @@ app.post('/check-answer', async (req, res) => {
       return res.status(400).json({ error: 'Missing answer' });
     }
     
-    // Проверка демо-режима
+    // Check if in demo mode
     if (!hasOllamaAccess) {
       return res.json({
         feedback: `Ваш ответ: "${studentAnswer}" выглядит неплохо. Продолжайте практиковаться!`,
@@ -112,7 +134,7 @@ app.post('/check-answer', async (req, res) => {
     
     const prompt = `Ты опытный репетитор. Оцени ответ ученика: "${studentAnswer}". Дай конструктивную обратную связь, укажи на сильные стороны и что можно улучшить.`;
     
-    const response = await axios.post(`${OLLAMA_ENDPOINT}/api/generate`, {
+    const response = await axios.post(`${OLLAMA_SERVER}/api/generate`, {
       model: MODEL,
       prompt: prompt,
       stream: false,
@@ -131,7 +153,7 @@ app.post('/check-answer', async (req, res) => {
   }
 });
 
-// Генерация плана обучения
+// Learning plan generation route
 app.post('/generate-plan', async (req, res) => {
   try {
     const { subject, daysUntilExam } = req.body;
@@ -139,7 +161,7 @@ app.post('/generate-plan', async (req, res) => {
     const days = daysUntilExam || 30;
     const subjectName = subject || 'math';
     
-    // Проверка демо-режима
+    // Check if in demo mode
     if (!hasOllamaAccess) {
       return res.json({
         plan: generateLocalPlan(subjectName),
@@ -150,7 +172,7 @@ app.post('/generate-plan', async (req, res) => {
     
     const prompt = `Ты опытный репетитор. Создай детальный план обучения по предмету "${subjectName === 'math' ? 'математика' : 'чешский язык'}" на ${days} дней. Разбей по неделям и укажи конкретные темы для изучения каждый день. План должен быть структурированным и последовательным.`;
     
-    const response = await axios.post(`${OLLAMA_ENDPOINT}/api/generate`, {
+    const response = await axios.post(`${OLLAMA_SERVER}/api/generate`, {
       model: MODEL,
       prompt: prompt,
       stream: false,
@@ -170,7 +192,7 @@ app.post('/generate-plan', async (req, res) => {
   }
 });
 
-// Вспомогательные функции
+// Helper functions
 function buildSolvePrompt(question, subject) {
   if (subject === 'math') {
     return `Ты опытный репетитор по математике. Подробно реши следующую задачу:
@@ -189,7 +211,7 @@ function buildSolvePrompt(question, subject) {
   return `Ответь на вопрос ученика: "${question}"`;
 }
 
-// Локальные ответы для демо-режима
+// Local responses for demo mode
 function generateLocalResponse(question, subject) {
   if (subject === 'math') {
     if (question.includes('реши') || question.includes('решить')) {
@@ -204,7 +226,7 @@ function generateLocalResponse(question, subject) {
   }
 }
 
-// Локальный план обучения для демо-режима
+// Local learning plan for demo mode
 function generateLocalPlan(subject) {
   if (subject === 'math') {
     return `План подготовки по математике на 30 дней:
@@ -252,13 +274,14 @@ function generateLocalPlan(subject) {
   }
 }
 
-// Для локального запуска
+// For local runs
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Ollama server: ${OLLAMA_SERVER}`);
   });
 }
 
-// Экспорт для Vercel
+// Export for Vercel
 module.exports = app;
